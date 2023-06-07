@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using UnityEngine;
 
 public enum TileType
@@ -15,7 +14,8 @@ public class RoomGenerator : IRoomGenerator
     public int CurrentFloors { get; set; } = MaxFloors;
     public int MapSize { get; } //The square dimensions of the tile map in terms of tiles.
 
-    private const int MaxFloors = 5000;
+    // This is how many floors are generated before walls and single tiles are accounted for.
+    private const int MaxFloors = 3500; 
     private List<Eater> eaters;
     private bool EnoughWallsRemoved => CurrentFloors <= 0;
 
@@ -35,12 +35,48 @@ public class RoomGenerator : IRoomGenerator
         {
             MoveEaters();
         }
+        
+        RemoveSingleTiles();
+        AddWalls();
+        PrintTileCount();
+    }
+
+    /// <summary>
+    /// Remove stray tiles from our map.
+    /// </summary>
+    private void RemoveSingleTiles()
+    {
+        for (int i = 1; i < MapSize - 1; i++)
+        {
+            for (int j = 1; j < MapSize - 1; j++)
+            {
+                if (TileMap[i, j] == TileType.Wall && TileMap[i - 1, j] == TileType.Floor
+                                                   && TileMap[i + 1, j] == TileType.Floor
+                                                   && TileMap[i, j - 1] == TileType.Floor
+                                                   && TileMap[i, j + 1] == TileType.Floor)
+                    TileMap[i, j] = TileType.Floor;
+
+            }
+        }
+    }
+
+    private void AddWalls()
+    {
+        for (int i = 0; i < MapSize; i++)
+        {
+            TileMap[0, i] = TileType.Wall;
+            TileMap[MapSize-1, i] = TileType.Wall;
+            TileMap[i, 0] = TileType.Wall;
+            TileMap[i, MapSize - 1] = TileType.Wall;
+        }
     }
 
     public Boolean IsLegalPosition(Vector2 position)
     {
-        if (position.x < 0 || position.y < 0
-                           || position.x > MapSize - 1 || position.y > MapSize - 1)
+        // We use 1 and -2 instead of 0 and -1 here because we add walls, which can lead to inaccessible areas
+        // unless we pad by one more tile.
+        if (position.x < 1 || position.y < 1
+                           || position.x > MapSize - 2 || position.y > MapSize - 2)
         {
             return false;
         }
@@ -87,7 +123,7 @@ public class RoomGenerator : IRoomGenerator
             }
         }
 
-        Debug.Log($"True Count: {trueCount}");
+        Debug.Log($"True floor count: {trueCount}");
     }
 
     public void PrintRoom()
@@ -124,6 +160,7 @@ public class RoomGenerator : IRoomGenerator
             if (!eaters[i].HasChild)
                 return;
 
+            Debug.Log($"Adding a child eater for a total of {eaters.Count} eaters");
             eaters.Add(new Eater(eaters[i].Position, this));
             eaters[i].HasChild = false;
         }
